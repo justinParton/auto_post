@@ -18,17 +18,12 @@
 //			http://www.ternstyle.us/automatic-video-posts-plugin-for-wordpress/license.html
 //
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
 /****************************************Commence Script*******************************************/
-
 if(!class_exists('youtube_import')) {
-
 class youtube_import {
-
 /*------------------------------------------------------------------------------------------------
 	Variables
 ------------------------------------------------------------------------------------------------*/
-
 	private $options = array();
 	private $memory_max = 32;
 	private $page = 0;
@@ -55,11 +50,9 @@ class youtube_import {
 	private $video_url = false;
 	
 	private $request_url = 'https://www.googleapis.com/youtube/v3';
-
 /*------------------------------------------------------------------------------------------------
 	Initialization
 ------------------------------------------------------------------------------------------------*/
-
 	public function __construct($o=array(),$x=array()) {
 		
 		//set options
@@ -99,7 +92,6 @@ class youtube_import {
 			}
 			
 			$this->chunk_set();
-
 			//if($this->page < 20) {
 				$this->paging_set();
 				$this->videos_import();
@@ -189,7 +181,6 @@ class youtube_import {
 	private function videos_import() {
 		
 		foreach((array)$this->channels as $k => $this->channel) {
-
 			//skip if we're only importing from specific channels
 			if(is_array($this->channels_for_import) and !in_array((int)$this->channel['id'],$this->channels_for_import)) {
 				continue;
@@ -257,7 +248,6 @@ class youtube_import {
 				$this->channel_import_quit();
 				continue;
 			}
-
 			//get latest video
 			//$this->channel_get_newest();
 			
@@ -322,14 +312,12 @@ class youtube_import {
 				$this->videos_found[] = $this->video_url_id;
 				$this->videos_added[$this->channel_name][] = $this->video_url_id;
 			}
-
 			//insert video
 			$this->video_item_insert();
 			if($this->video) {
 				$this->file_update('<span class="imported">Video successfully imported: '.$this->video_item['post_title'].'</span>');
 				$this->video_item_meta();
 			}
-
 		}
 	}
 	private function videos_video_get() {
@@ -345,6 +333,7 @@ class youtube_import {
 		$this->video_item_set_content();
 		$this->video_item_set_cats();
 		$this->video_item_set_publish();
+		$this->setGBFICPostInfo();
 	}
 	private function video_item_set_id() {
 		$this->video_id = false;
@@ -376,34 +365,29 @@ class youtube_import {
 		$this->video_item['post_author'] = $this->channel['author'];
 	}
 	private function video_item_set_title() {
-		
-	
-		if (strpos($a, '~') !== false) {
-			$title = explode("~", $this->item->snippet->title);
-		}else{
-			$title = explode("-", $this->item->snippet->title);
-		}
-		
-		$this->video_item['post_title'] = $title[0];
+		$this->video_item['post_title'] = $this->item->snippet->title;
 	}
 	private function video_item_set_slug() {
 		$this->video_item['post_name'] = wp_unique_post_slug(sanitize_title($this->item->snippet->title));
 	}
 	private function video_item_set_content() {
-
 		
-		$video = '[vc_row row_type="2" blox_height="424" blox_image="8787" page_title="page-title-x" blox_dark="true" video_fullscreen="true" video_type="video/youtube"]';
-		$video .= '[vc_column][distance type="4"][distance type="4"][vc_video link="https://youtu.be/'.$this->video_id.'" align="center"][distance type="4"][vc_row_inner 0=""]';
-		$video .= '[vc_column_inner width="2/3"][vc_column_text]';
-		$video = '<h2>'.$this->video_item['post_title'].'</h2>';
-		$video = '<h4>'. gmdate('M j, Y',strtotime($this->video_item['post_date'])).'  |  Andrew Stoecklein</h4>';
-		$video = '[/vc_column_text][/vc_column_inner][vc_column_inner width="1/3"][/vc_column_inner][/vc_row_inner][distance type="2"][/vc_column][/vc_row][vc_row][vc_column]';
-		$video = '[distance][/vc_column][/vc_row][vc_row 0=""][vc_column 0=""][vc_column_text]';
-		$video = '<h1 style="text-align: center;">Related Messages</h1>';
-		$video = '[/vc_column_text][vc_basic_grid post_type="sermon" max_items="-1" style="load-more" items_per_page="3" show_filter="yes" filter_style="filled" filter_size="lg" item="basicGrid_NoAnimation" initial_loading_animation="none" grid_id="vc_gid:1500917728930-38f8d954-ece9-7" filter_source="sermon_category"][/vc_column]';
-		$video = '[/vc_row]';
+		if(isset($this->channel['import_description']) and !$this->channel['import_description']) {
+			return $this->video_item['post_content'] = '';
+		}
 		
-		$this->video_item['post_content'] = $video;
+		$s = (string)$this->item->snippet->description;
+		$s = preg_replace('@(https?://([-\w\.]+)+(:\d+)?(/([\w/_\.#!-]*(\?\S+)?)?)?)@',"<a href=\"$1\" target=\"_blank\" rel=\"nofollow\">$1</a>",$s);
+		
+		if($this->options['content_truncate'] and (int)$this->options['content_truncate_after'] > 0) {
+			$s = explode(' ',$s);
+			if(count($s) > (int)$this->options['content_truncate_after']) {
+				$s = array_merge(array_splice($s,0,(int)$this->options['content_truncate_after']),array('<!--more-->'),$s);
+			}
+			$s = implode(' ',$s);
+		}
+		
+		$this->video_item['post_content'] = $s;
 	}
 	private function video_item_set_cats() {
 		if(!isset($this->channel['terms'])) {
@@ -427,7 +411,6 @@ class youtube_import {
 		}
 	}
 	private function video_item_set_tags() {
-
 	}
 	private function video_item_set_publish() {
 		$this->video_item['post_status'] = 'draft';
@@ -457,6 +440,23 @@ class youtube_import {
 	
 		update_post_meta($this->video,'_ayvpp_auto_play',(int)$this->channel['auto_play']);
 		update_post_meta($this->video,'_ayvpp_show_related',(isset($this->channel['related_show']) ? (int)$this->channel['related_show'] : 0));
+		
+		// Set meta data
+		// this sets the page up to show the sermon stylings
+		$sermonMeta = array (
+			"webnus_page_options"=> array(
+				array(
+					"webnus_transparent_header"=>"dark",
+					"show_page_title bar" => "hide",
+					"sidebar_position" => "none",
+					"bg_image_100" => "no",
+					"bg_image_repeat" => "1", 
+					"webnus_footer_show" => "true"
+				)
+			)
+		);
+		update_post_meta($this->video,'_sermon_meta',$sermonMeta);
+		
 	}
 	private function video_item_thumbs() {
 		$a = array(
@@ -475,7 +475,50 @@ class youtube_import {
 			}
 		}
 	}
-
+	
+	private function setGBFICPostInfo(){
+		
+		// get title data
+		if (strpos($a, '~') !== false) {
+			$title = explode("~", $this->item->snippet->title);
+		}else{
+			$title = explode("-", $this->item->snippet->title);
+		}
+		
+		//set the title
+		$this->video_item['post_title'] = $title[0];
+		
+		//first make sure there is an author to be placed
+		if(count($title) > 1 ){
+			// Set author data
+			$this->video_item['post_author'] = $title[1];
+		}
+		
+		// $post = get_post( # )->post_title; 
+		// $output =  apply_filters( 'the_content', $post->post_content );
+		//
+		// $keywords = array('@@@YOUTUBEURL@@@','@@@AUTHOR@@@','@@@Date@@@');
+		// $values = array('','','');
+		//
+		// $value = str_replace( $keywords , $values , $output);
+		// $this->video_item['post_content'] = $value;
+		
+		
+		// set content data
+		$video = '[vc_row row_type="2" blox_height="424" blox_image="8787" page_title="page-title-x" blox_dark="true" video_fullscreen="true" video_type="video/youtube"]';
+		$video .= '[vc_column][distance type="4"][distance type="4"][vc_video link="https://youtu.be/'.$this->video_id.'" align="center"][distance type="4"][vc_row_inner 0=""]';
+		$video .= '[vc_column_inner width="2/3"][vc_column_text]';
+		$video = '<h2>'.$this->video_item['post_title'].'</h2>';
+		$video = '<h4>'. gmdate('M j, Y',strtotime($this->video_item['post_date'])).'  |  Andrew Stoecklein</h4>';
+		$video = '[/vc_column_text][/vc_column_inner][vc_column_inner width="1/3"][/vc_column_inner][/vc_row_inner][distance type="2"][/vc_column][/vc_row][vc_row][vc_column]';
+		$video = '[distance][/vc_column][/vc_row][vc_row 0=""][vc_column 0=""][vc_column_text]';
+		$video = '<h1 style="text-align: center;">Related Messages</h1>';
+		$video = '[/vc_column_text][vc_basic_grid post_type="sermon" max_items="-1" style="load-more" items_per_page="3" show_filter="yes" filter_style="filled" filter_size="lg" item="basicGrid_NoAnimation" initial_loading_animation="none" grid_id="vc_gid:1500917728930-38f8d954-ece9-7" filter_source="sermon_category"][/vc_column]';
+		$video = '[/vc_row]';
+		
+		$this->video_item['post_content'] = $video;
+		
+	}
 /*------------------------------------------------------------------------------------------------
 	Channels
 ------------------------------------------------------------------------------------------------*/
@@ -508,7 +551,6 @@ class youtube_import {
 		if($this->channel_search_has_error()) {
 			return false;
 		}
-
 		foreach((array)$this->channel_search_feed->items as $v) {
 			if(strtolower($v->snippet->channelTitle) == strtolower($this->channel['channel'])) {
 				$this->channel_id = $v->id->channelId;
@@ -523,7 +565,6 @@ class youtube_import {
 				break;
 			}
 		}
-
 		if(!$this->channel_playlist) {
 			return false;
 		}
@@ -612,9 +653,7 @@ class youtube_import {
 /*------------------------------------------------------------------------------------------------
 	Parse Channel
 ------------------------------------------------------------------------------------------------*/
-
 	private function parse_channel_search_url_set() {
-
 		$this->channel_search_url = $this->request_url.'/search/?type=channel&q='.$this->channel['channel'];
 	
 		$this->parse_channel_search_url_set_key();
@@ -643,7 +682,6 @@ class youtube_import {
 	}
 	
 	private function parse_channel_url_set() {
-
 		$this->channel_url = $this->request_url.'/channels/?id='.$this->channel_id;
 	
 		$this->parse_channel_url_set_key();
@@ -670,11 +708,9 @@ class youtube_import {
 		));
 		$this->channel_feed = json_decode($r->body);
 	}
-
 /*------------------------------------------------------------------------------------------------
 	Parse Video
 ------------------------------------------------------------------------------------------------*/
-
 	private function parse_video_url_set() {
 		if(!$this->video_id) {
 			return false;
@@ -705,11 +741,9 @@ class youtube_import {
 		));
 		$this->video = json_decode($r->body);
 	}
-
 /*------------------------------------------------------------------------------------------------
 	Parse Feed
 ------------------------------------------------------------------------------------------------*/
-
 	private function parse_feed_url_set() {
 		if($this->channel['type'] == 'channel') {
 			//$this->feed_url = $this->request_url.'/playlistItems/?channelId='.$this->channel_id;
@@ -721,7 +755,6 @@ class youtube_import {
 		elseif($this->channel['type'] == 'search') {
 			$this->feed_url = $this->request_url.'/search/?type=video&q='.urlencode($this->channel['channel']);
 		}
-
 		if(!$this->feed_url) {
 			return false;
 		}
@@ -795,7 +828,6 @@ class youtube_import {
 		}
 		return false;
 	}
-
 /*------------------------------------------------------------------------------------------------
 	Progress
 ------------------------------------------------------------------------------------------------*/
@@ -869,7 +901,6 @@ class youtube_import {
 	}
 	
 }
-
 }
 	
 /****************************************Terminate Script******************************************/
