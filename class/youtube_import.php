@@ -376,29 +376,34 @@ class youtube_import {
 		$this->video_item['post_author'] = $this->channel['author'];
 	}
 	private function video_item_set_title() {
-		$this->video_item['post_title'] = $this->item->snippet->title;
+		
+	
+		if (strpos($a, '~') !== false) {
+			$title = explode("~", $this->item->snippet->title);
+		}else{
+			$title = explode("-", $this->item->snippet->title);
+		}
+		
+		$this->video_item['post_title'] = $title[0];
 	}
 	private function video_item_set_slug() {
 		$this->video_item['post_name'] = wp_unique_post_slug(sanitize_title($this->item->snippet->title));
 	}
 	private function video_item_set_content() {
+
 		
-		if(isset($this->channel['import_description']) and !$this->channel['import_description']) {
-			return $this->video_item['post_content'] = '';
-		}
+		$video = '[vc_row row_type="2" blox_height="424" blox_image="8787" page_title="page-title-x" blox_dark="true" video_fullscreen="true" video_type="video/youtube"]';
+		$video .= '[vc_column][distance type="4"][distance type="4"][vc_video link="https://youtu.be/'.$this->video_id.'" align="center"][distance type="4"][vc_row_inner 0=""]';
+		$video .= '[vc_column_inner width="2/3"][vc_column_text]';
+		$video = '<h2>'.$this->video_item['post_title'].'</h2>';
+		$video = '<h4>'. gmdate('M j, Y',strtotime($this->video_item['post_date'])).'  |  Andrew Stoecklein</h4>';
+		$video = '[/vc_column_text][/vc_column_inner][vc_column_inner width="1/3"][/vc_column_inner][/vc_row_inner][distance type="2"][/vc_column][/vc_row][vc_row][vc_column]';
+		$video = '[distance][/vc_column][/vc_row][vc_row 0=""][vc_column 0=""][vc_column_text]';
+		$video = '<h1 style="text-align: center;">Related Messages</h1>';
+		$video = '[/vc_column_text][vc_basic_grid post_type="sermon" max_items="-1" style="load-more" items_per_page="3" show_filter="yes" filter_style="filled" filter_size="lg" item="basicGrid_NoAnimation" initial_loading_animation="none" grid_id="vc_gid:1500917728930-38f8d954-ece9-7" filter_source="sermon_category"][/vc_column]';
+		$video = '[/vc_row]';
 		
-		$s = (string)$this->item->snippet->description;
-		$s = preg_replace('@(https?://([-\w\.]+)+(:\d+)?(/([\w/_\.#!-]*(\?\S+)?)?)?)@',"<a href=\"$1\" target=\"_blank\" rel=\"nofollow\">$1</a>",$s);
-		
-		if($this->options['content_truncate'] and (int)$this->options['content_truncate_after'] > 0) {
-			$s = explode(' ',$s);
-			if(count($s) > (int)$this->options['content_truncate_after']) {
-				$s = array_merge(array_splice($s,0,(int)$this->options['content_truncate_after']),array('<!--more-->'),$s);
-			}
-			$s = implode(' ',$s);
-		}
-		
-		$this->video_item['post_content'] = $s;
+		$this->video_item['post_content'] = $video;
 	}
 	private function video_item_set_cats() {
 		if(!isset($this->channel['terms'])) {
